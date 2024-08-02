@@ -17,6 +17,9 @@ class NeuronWorker(LoraNotSupportedWorkerBase, LocalOrDistributedWorkerBase):
     """A worker class that executes the model on a group of neuron cores.
     """
 
+    def execute_worker(self, worker_input: WorkerInput) -> None:
+        pass
+
     def __init__(
         self,
         model_config: ModelConfig,
