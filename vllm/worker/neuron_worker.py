@@ -6,6 +6,7 @@ import torch.distributed
 
 from vllm.config import (CacheConfig, DeviceConfig, ModelConfig,
                          ParallelConfig, SchedulerConfig)
+from vllm.distributed import init_distributed_environment, ensure_model_parallel_initialized
 from vllm.model_executor import set_random_seed
 from vllm.sequence import ExecuteModelRequest
 from vllm.worker.neuron_model_runner import NeuronModelRunner
@@ -43,6 +44,7 @@ class NeuronWorker(LoraNotSupportedWorkerBase, LocalOrDistributedWorkerBase):
         self.is_driver_worker = True
 
     def init_device(self) -> None:
+        self.init_distributed_environment()
         # Set random seed.
         set_random_seed(self.model_config.seed)
 
@@ -98,3 +100,9 @@ class NeuronWorker(LoraNotSupportedWorkerBase, LocalOrDistributedWorkerBase):
         This is required for speculative decoding; it is not yet implemented.
         """
         raise NotImplementedError
+
+    def init_distributed_environment(self):
+        parallel_config = self.parallel_config
+        ensure_model_parallel_initialized(
+            parallel_config.tensor_parallel_size,
+            parallel_config.pipeline_parallel_size)
