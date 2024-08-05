@@ -50,7 +50,7 @@ class NeuronWorker(LoraNotSupportedWorkerBase, LocalOrDistributedWorkerBase):
             rank=0,
             local_rank=0,
             distributed_init_method=get_distributed_init_method(
-                get_ip(), get_open_port()),
+                get_ip(), 8005),
             backend="gloo",
         )
         ensure_model_parallel_initialized(
