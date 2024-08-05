@@ -118,7 +118,7 @@ class NeuronWorker(LoraNotSupportedWorkerBase, LocalOrDistributedWorkerBase):
     def init_distributed_environment(self):
         print("initializing distributed env")
         init_distributed_environment(
-            world_size=1,
+            world_size=self.parallel_config.world_size,
             rank=self.rank,
             distributed_init_method=self.distributed_init_method,
             backend="gloo",
