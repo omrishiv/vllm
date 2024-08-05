@@ -29,12 +29,18 @@ class NeuronWorker(LoraNotSupportedWorkerBase, LocalOrDistributedWorkerBase):
         scheduler_config: SchedulerConfig,
         device_config: DeviceConfig,
         cache_config: CacheConfig,
+        local_rank: int,
+        rank: int,
+        distributed_init_method: str,
     ) -> None:
         self.model_config = model_config
         self.parallel_config = parallel_config
         self.scheduler_config = scheduler_config
         self.device_config = device_config
         self.cache_config = cache_config
+        self.local_rank = local_rank
+        self.rank = rank
+        self.distributed_init_method = distributed_init_method
         if self.model_config.trust_remote_code:
             # note: lazy import to avoid importing torch before initializing
             from vllm.utils import init_cached_hf_modules
@@ -45,17 +51,8 @@ class NeuronWorker(LoraNotSupportedWorkerBase, LocalOrDistributedWorkerBase):
         self.is_driver_worker = True
 
     def init_device(self) -> None:
-        init_distributed_environment(
-            world_size=self.parallel_config.world_size,
-            rank=0,
-            local_rank=0,
-            distributed_init_method=get_distributed_init_method(
-                get_ip(), 8005),
-            backend="gloo",
-        )
-        ensure_model_parallel_initialized(
-            self.parallel_config.tensor_parallel_size,
-            self.parallel_config.pipeline_parallel_size)
+        self.init_distributed_environment()
+
         # Set random seed.
         set_random_seed(self.model_config.seed)
 
@@ -117,3 +114,22 @@ class NeuronWorker(LoraNotSupportedWorkerBase, LocalOrDistributedWorkerBase):
             worker_input: WorkerInput,
     ) -> None:
         pass
+
+    def init_distributed_environment(self):
+        parallel_config = self.parallel_config
+        rank = self.rank
+        distributed_init_method = self.distributed_init_method
+        init_distributed_environment(
+            world_size=parallel_config.world_size,
+            rank=rank,
+            distributed_init_method=distributed_init_method,
+            backend="gloo",
+        )
+
+        # A small all_reduce for warmup.
+        torch.distributed.all_reduce(torch.zeros(1).cpu())
+
+        ensure_model_parallel_initialized(
+            parallel_config.tensor_parallel_size,
+            parallel_config.pipeline_parallel_size,
+        )
