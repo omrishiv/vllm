@@ -116,20 +116,17 @@ class NeuronWorker(LoraNotSupportedWorkerBase, LocalOrDistributedWorkerBase):
         pass
 
     def init_distributed_environment(self):
-        parallel_config = self.parallel_config
-        # rank = self.rank
-        # distributed_init_method = self.distributed_init_method
-        # init_distributed_environment(
-        #     world_size=parallel_config.world_size,
-        #     rank=rank,
-        #     distributed_init_method=distributed_init_method,
-        #     backend="gloo",
-        # )
-        #
+        init_distributed_environment(
+            world_size=self.parallel_config.world_size,
+            # rank=rank,
+            distributed_init_method=self.distributed_init_method,
+            backend="gloo",
+        )
+
         # # A small all_reduce for warmup.
         # torch.distributed.all_reduce(torch.zeros(1).cpu())
         print("initializing distributed env")
         ensure_model_parallel_initialized(
-            parallel_config.tensor_parallel_size,
-            parallel_config.pipeline_parallel_size,
+            self.parallel_config.tensor_parallel_size,
+            self.parallel_config.pipeline_parallel_size,
         )
