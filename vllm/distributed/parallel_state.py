@@ -831,6 +831,7 @@ def init_distributed_environment(
     global _WORLD
     if _WORLD is None:
         print("world is none, init world")
+        print(f"{torch.distributed.get_world_size()=}")
         ranks = list(range(torch.distributed.get_world_size()))
         print(f"{ranks=}")
         _WORLD = init_world_group(ranks, local_rank, backend)
