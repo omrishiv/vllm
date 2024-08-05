@@ -6,20 +6,19 @@ import torch.distributed
 
 from vllm.config import (CacheConfig, DeviceConfig, ModelConfig,
                          ParallelConfig, SchedulerConfig)
-from vllm.distributed import init_distributed_environment, ensure_model_parallel_initialized
+from vllm.distributed import init_distributed_environment, ensure_model_parallel_initialized, broadcast_tensor_dict, \
+    get_pp_group
 from vllm.model_executor import set_random_seed
-from vllm.sequence import ExecuteModelRequest
+from vllm.sequence import ExecuteModelRequest, SamplerOutput, IntermediateTensors
+from vllm.worker.model_runner_base import ModelRunnerInputBase
 from vllm.worker.neuron_model_runner import NeuronModelRunner
 from vllm.worker.worker_base import (LocalOrDistributedWorkerBase,
                                      LoraNotSupportedWorkerBase, WorkerInput)
 
 
-class NeuronWorker(LoraNotSupportedWorkerBase, LocalOrDistributedWorkerBase):
+class NeuronWorker(LoraNotSupportedWorkerBase):
     """A worker class that executes the model on a group of neuron cores.
     """
-
-    def execute_worker(self, worker_input: WorkerInput) -> None:
-        pass
 
     def __init__(
         self,
@@ -44,7 +43,6 @@ class NeuronWorker(LoraNotSupportedWorkerBase, LocalOrDistributedWorkerBase):
         self.is_driver_worker = True
 
     def init_device(self) -> None:
-        self.init_distributed_environment()
         # Set random seed.
         set_random_seed(self.model_config.seed)
 
@@ -101,9 +99,71 @@ class NeuronWorker(LoraNotSupportedWorkerBase, LocalOrDistributedWorkerBase):
         """
         raise NotImplementedError
 
-    def init_distributed_environment(self):
-        parallel_config = self.parallel_config
-        ensure_model_parallel_initialized(
-            parallel_config.tensor_parallel_size,
-            parallel_config.pipeline_parallel_size,
-            backend="gloo")
+    def execute_model(
+            self,
+            execute_model_req: Optional[ExecuteModelRequest] = None
+    ) -> Optional[List[SamplerOutput]]:
+        """Executes at least one model step on the given sequences, unless no
+        sequences are provided."""
+        if self.is_driver_worker:
+            if execute_model_req is None:
+                if self.do_metadata_broadcast:
+                    # This signals that there's no more requests to process for
+                    # now. All workers are running infinite loop with
+                    # broadcast_tensor_dict, and it stops the loop when the
+                    # driver broadcasts an empty input. Send an empty input to
+                    # notify all other workers to stop their execution loop.
+                    broadcast_tensor_dict({}, src=0)
+                return None
+
+            worker_input: WorkerInput = self.prepare_worker_input(
+                execute_model_req=execute_model_req)
+            model_input: ModelRunnerInputBase = (
+                self.model_runner.prepare_model_input(
+                    execute_model_req.seq_group_metadata_list,
+                    execute_model_req.virtual_engine,
+                    execute_model_req.finished_requests_ids))
+            num_steps = execute_model_req.num_steps
+
+            if self.do_metadata_broadcast:
+                broadcast_data = worker_input.as_broadcastable_tensor_dict()
+                broadcast_data.update(
+                    model_input.as_broadcastable_tensor_dict())
+                broadcast_data["num_steps"] = num_steps
+                broadcast_tensor_dict(broadcast_data, src=0)
+        else:
+            assert self.do_metadata_broadcast
+            broadcast_data = broadcast_tensor_dict(src=0)
+            if not broadcast_data:
+                return None
+
+            num_steps = broadcast_data.pop("num_steps")
+            worker_input = WorkerInput.from_broadcasted_tensor_dict(
+                broadcast_data)
+            model_input = (
+                self.model_runner.
+                make_model_input_from_broadcasted_tensor_dict(broadcast_data))
+
+        self.execute_worker(worker_input)
+
+        # If there is no input, we don't need to execute the model.
+        if worker_input.num_seq_groups == 0:
+            return []
+
+        intermediate_tensors = None
+        if not get_pp_group().is_first_rank:
+            intermediate_tensors = IntermediateTensors(
+                get_pp_group().recv_tensor_dict())
+
+        output = self.model_runner.execute_model(
+            model_input, self.kv_cache[worker_input.virtual_engine]
+            if self.kv_cache is not None else None, intermediate_tensors,
+            num_steps)
+
+        if not get_pp_group().is_last_rank:
+            # output is IntermediateTensors
+            get_pp_group().send_tensor_dict(output.tensors)
+            return [None]
+
+        # output is List[SamplerOutput]
+        return output
