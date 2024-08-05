@@ -711,6 +711,7 @@ def get_world_group() -> GroupCoordinator:
 
 def init_world_group(ranks: List[int], local_rank: int,
                      backend: str) -> GroupCoordinator:
+    print("initing world group")
     return GroupCoordinator(
         group_ranks=[ranks],
         local_rank=local_rank,
@@ -800,20 +801,23 @@ def init_distributed_environment(
     local_rank: int = -1,
     backend: str = "nccl",
 ):
-    logger.debug(
+    print(
         "world_size=%d rank=%d local_rank=%d "
         "distributed_init_method=%s backend=%s", world_size, rank, local_rank,
         distributed_init_method, backend)
     if not torch.distributed.is_initialized():
+        print("not torch.distributed.is_initialized")
         assert distributed_init_method is not None, (
             "distributed_init_method must be provided when initializing "
             "distributed environment")
         # this backend is used for WORLD
+        print("trying to init process group")
         torch.distributed.init_process_group(
             backend=backend,
             init_method=distributed_init_method,
             world_size=world_size,
             rank=rank)
+        print("init process group")
     # set the local rank
     # local_rank is not available in torch ProcessGroup,
     # see https://github.com/pytorch/pytorch/issues/122816
@@ -826,8 +830,10 @@ def init_distributed_environment(
             local_rank = rank
     global _WORLD
     if _WORLD is None:
+        print("world is none, init world")
         ranks = list(range(torch.distributed.get_world_size()))
         _WORLD = init_world_group(ranks, local_rank, backend)
+        print("inited world")
     else:
         assert _WORLD.world_size == torch.distributed.get_world_size(), (
             "world group already initialized with a different world size")

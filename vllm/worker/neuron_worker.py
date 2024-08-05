@@ -7,7 +7,7 @@ import torch.distributed
 from vllm.config import (CacheConfig, DeviceConfig, ModelConfig,
                          ParallelConfig, SchedulerConfig)
 from vllm.distributed import init_distributed_environment, ensure_model_parallel_initialized, broadcast_tensor_dict, \
-    get_pp_group
+    get_pp_group, initialize_model_parallel
 from vllm.model_executor import set_random_seed
 from vllm.sequence import ExecuteModelRequest, SamplerOutput, IntermediateTensors
 from vllm.utils import get_distributed_init_method, get_open_port, get_ip
@@ -124,7 +124,6 @@ class NeuronWorker(LoraNotSupportedWorkerBase, LocalOrDistributedWorkerBase):
             backend="gloo",
         )
         print("finished initializing distributed env")
-
         # # A small all_reduce for warmup.
         # torch.distributed.all_reduce(torch.zeros(1).cpu())
         print("ensuring model parallel inited")
