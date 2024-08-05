@@ -1,19 +1,14 @@
 """A Neuron worker class."""
 from typing import List, Optional, Tuple
 
-import torch
 import torch.distributed
 
 from vllm.config import (CacheConfig, DeviceConfig, ModelConfig,
                          ParallelConfig, SchedulerConfig)
-from vllm.distributed import init_distributed_environment, ensure_model_parallel_initialized, broadcast_tensor_dict, \
-    get_pp_group, initialize_model_parallel
+from vllm.distributed import init_distributed_environment, ensure_model_parallel_initialized
 from vllm.model_executor import set_random_seed
-from vllm.sequence import ExecuteModelRequest, SamplerOutput, IntermediateTensors
-from vllm.utils import get_distributed_init_method, get_open_port, get_ip
-from vllm.worker.model_runner_base import ModelRunnerInputBase
+from vllm.sequence import ExecuteModelRequest
 from vllm.worker.neuron_model_runner import NeuronModelRunner
-from vllm.worker.worker import Worker
 from vllm.worker.worker_base import (LocalOrDistributedWorkerBase,
                                      LoraNotSupportedWorkerBase, WorkerInput)
 

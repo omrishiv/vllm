@@ -25,7 +25,7 @@ class NeuronExecutor(ExecutorBase):
     def _init_worker(self):
         from vllm.worker.neuron_worker import NeuronWorker
         distributed_init_method = get_distributed_init_method(
-            '0.0.0.0', get_open_port())
+            get_ip(), get_open_port())
         self.driver_worker = NeuronWorker(
             model_config=self.model_config,
             parallel_config=self.parallel_config,
