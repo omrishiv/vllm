@@ -1,4 +1,5 @@
 """A Neuron worker class."""
+import os
 from typing import List, Optional, Tuple
 
 import torch.distributed
@@ -46,6 +47,7 @@ class NeuronWorker(LoraNotSupportedWorkerBase, LocalOrDistributedWorkerBase):
         self.is_driver_worker = True
 
     def init_device(self) -> None:
+        os.environ["PJRT_DEVICE"] = "NEURON"
         self.init_distributed_environment()
 
         # Set random seed.
