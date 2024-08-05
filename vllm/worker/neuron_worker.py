@@ -117,6 +117,7 @@ class NeuronWorker(LoraNotSupportedWorkerBase, LocalOrDistributedWorkerBase):
         init_distributed_environment(
             world_size=self.parallel_config.world_size,
             rank=self.rank,
+            local_rank=self.local_rank,
             distributed_init_method=self.distributed_init_method,
             backend="gloo",
         )
@@ -127,6 +128,6 @@ class NeuronWorker(LoraNotSupportedWorkerBase, LocalOrDistributedWorkerBase):
         ensure_model_parallel_initialized(
             self.parallel_config.tensor_parallel_size,
             self.parallel_config.pipeline_parallel_size,
-            backend="gloo",
+            # backend="gloo",
         )
         print("model parallel inited")
