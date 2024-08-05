@@ -832,9 +832,12 @@ def init_distributed_environment(
     if _WORLD is None:
         print("world is none, init world")
         ranks = list(range(torch.distributed.get_world_size()))
+        print(f"{ranks=}")
         _WORLD = init_world_group(ranks, local_rank, backend)
+        print(f"{_WORLD=}")
         print("inited world")
     else:
+        print("world group already initialized with a different world size")
         assert _WORLD.world_size == torch.distributed.get_world_size(), (
             "world group already initialized with a different world size")
 
