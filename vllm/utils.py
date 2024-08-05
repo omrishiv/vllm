@@ -365,10 +365,10 @@ def get_ip() -> str:
     return "0.0.0.0"
 
 
-def get_distributed_init_method(ip: str, port: int) -> str:
+def get_distributed_init_method(ip: str, port: int, scheme: str = "tcp") -> str:
     # Brackets are not permitted in ipv4 addresses,
     # see https://github.com/python/cpython/issues/103848
-    return f"tcp://[{ip}]:{port}" if ":" in ip else f"tcp://{ip}:{port}"
+    return f"{scheme}://[{ip}]:{port}" if ":" in ip else f"{scheme}://{ip}:{port}"
 
 
 def get_open_port() -> int:
