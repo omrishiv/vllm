@@ -51,7 +51,7 @@ class NeuronWorker(LoraNotSupportedWorkerBase, LocalOrDistributedWorkerBase):
         self.is_driver_worker = True
 
     def init_device(self) -> None:
-        self.init_distributed_environment()
+        # self.init_distributed_environment()
 
         # Set random seed.
         set_random_seed(self.model_config.seed)
