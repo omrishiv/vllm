@@ -125,8 +125,8 @@ class NeuronWorker(LoraNotSupportedWorkerBase, LocalOrDistributedWorkerBase):
 
         print("ensuring model parallel inited")
         ensure_model_parallel_initialized(
-            self.parallel_config.tensor_parallel_size,
-            self.parallel_config.pipeline_parallel_size,
+            1,
+            1,
             # backend="gloo",
         )
         print("model parallel inited")
